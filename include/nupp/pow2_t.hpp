@@ -1,4 +1,5 @@
 #pragma once
+#include <bit>
 #include <concepts>
 #include <cstdint>
 #include <type_traits>
@@ -12,6 +13,12 @@ namespace nupp {
 template <typename T>
 concept integer = std::integral<T> && !std::same_as<std::remove_cv_t<T>, bool>;
 
+/**
+ * @brief An std::unsigned_integral type other than bool
+ **/
+template <typename T>
+concept unsigned_integer = integer<T> && std::unsigned_integral<T>;
+
 using std::size_t;
 
 template <typename T>
@@ -22,21 +29,52 @@ constexpr size_t sizeof_bit = sizeof(T) * 8;
  *        powers of 2 between 1 and (including) 2^63
  **/
 struct pow2_t {
-  /**
-   * @brief The default constructor creates 2^0
-   **/
-  constexpr pow2_t() noexcept: value(1) {}
+  constexpr static struct floor_tag {} floor = {};
+  constexpr static struct ceil_tag {} ceil = {};
+  constexpr static struct exact_tag {} exact = {};
 
   /**
-   * @brief Floors the given argument to the closest lower power of 2
+   * @brief Flooring constructor: if the argument is not itself a
+   *        power of 2, it is rounded to the closest lower power of 2
    * @note  Signed types are accepted for convenience only. A negative
    *        or zero argument leads to undefined behaviour
    * @param arg where 0 < arg < 2^64
    **/
   template <integer T>
-  explicit constexpr pow2_t(const T arg) noexcept
+  constexpr pow2_t(const T arg, const floor_tag) noexcept
     : value(uint64_t(1) << (sizeof_bit<T> - 1)
             >> std::countl_zero(std::make_unsigned_t<T>(arg))) {}
+
+  /**
+   * @brief Ceiling constructor: if the argument is not itself a
+   *        power of 2, it is rounded to the closest higher power of 2
+   * @note  Signed types are accepted for convenience only. A negative
+   *        or zero argument leads to undefined behaviour
+   * @param arg where 0 < arg <= 2^63
+   **/
+  template <integer T>
+  constexpr pow2_t(const T arg, const ceil_tag) noexcept
+    : pow2_t((uint64_t(arg) << 1) - 1, floor) {}
+
+  /**
+   * @brief Exact constructor: the argument *must* be a power of 2,
+   *        otherwise the behaviour is undefined
+   * @param arg where 0 < arg <= 2^63
+   **/
+  template <integer T>
+  constexpr pow2_t(const T arg, const exact_tag) noexcept: value(arg) {}
+
+  /**
+   * @brief By default, use the flooring constructor (and not the
+   *        exact one, better safe than sorry)
+   **/
+  template <integer T>
+  constexpr explicit pow2_t(const T arg) noexcept: pow2_t(arg, floor) {}
+
+  /**
+   * @brief The default constructor creates 2^0
+   **/
+  constexpr pow2_t() noexcept: value(1) {}
 
   constexpr pow2_t(const pow2_t&) = default;
   constexpr pow2_t(pow2_t&&) = default;
@@ -57,8 +95,41 @@ struct pow2_t {
     return uint8_t(std::countr_zero(value));
   }
 
+  /**
+   * @brief Returns a mask with all the bits from the first to the
+   *        log2()-th set. Useful for modular arithmetic
+   **/
+  constexpr uint64_t get_mask() const noexcept {
+    return value - 1;
+  }
+
   constexpr auto operator<=>(const pow2_t rhs) const noexcept {
     return value <=> rhs.value;
+  }
+
+  constexpr pow2_t operator>>(const int shift) const noexcept {
+    return { value >> shift, exact };
+  }
+
+  constexpr pow2_t operator<<(const int shift) const noexcept {
+    return { value << shift, exact };
+  }
+
+  constexpr pow2_t operator*(const pow2_t& rhs) const noexcept {
+    return *this << rhs.log2();
+  }
+
+  constexpr pow2_t operator/(const pow2_t& rhs) const noexcept {
+    return *this >> rhs.log2();
+  }
+
+  constexpr uint64_t operator%(const pow2_t& rhs) const noexcept {
+    return value & rhs.get_mask();
+  }
+
+  template <unsigned_integer T>
+  friend constexpr T operator%(const T& lhs, const pow2_t& rhs) noexcept {
+    return lhs & static_cast<T>(rhs.get_mask());
   }
 
   constexpr operator uint64_t() const noexcept {
