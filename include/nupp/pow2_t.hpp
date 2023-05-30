@@ -4,6 +4,15 @@
 #include <cstdint>
 #include <type_traits>
 
+/**
+ * @file
+ * A structural type representing powers of two and the corresponding
+ * concepts and tools
+ *
+ * @author    patternnoster@github
+ * @copyright 2023, under the MIT License (see /LICENSE for details)
+ **/
+
 namespace nupp {
 
 /**
