@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.23)
 
-add_executable(nupp_tests pow2_tests.cpp)
+add_executable(nupp_tests
+  mask_iterator_tests.cpp
+  pow2_tests.cpp
+)
 target_link_libraries(nupp_tests PRIVATE nupp gtest_main)
 
 # Show all warnings because we're pedantic (and also all and extra)
