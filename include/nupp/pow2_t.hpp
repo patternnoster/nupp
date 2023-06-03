@@ -28,6 +28,32 @@ concept integer = std::integral<T> && !std::same_as<std::remove_cv_t<T>, bool>;
 template <typename T>
 concept unsigned_integer = integer<T> && std::unsigned_integral<T>;
 
+struct pow2_t;
+
+/**
+ * @brief An integer type (standard integral except bool) or pow2_t
+ *        (and the cv-qualified versions of those)
+ **/
+template <typename T>
+concept extended_integer =
+  integer<T> || std::same_as<std::remove_cv_t<T>, pow2_t>;
+
+/**
+ * @brief A standard arithmetic type or pow2_t (and the cv-qualified
+ *        versions of those)
+ **/
+template <typename T>
+concept extended_arithmetic =
+  std::is_arithmetic_v<T> || std::same_as<std::remove_cv_t<T>, pow2_t>;
+
+/**
+ * @brief Checks if an integer is a power of 2
+ **/
+template <unsigned_integer T>
+constexpr bool is_pow2(const T arg) noexcept {
+  return std::has_single_bit(arg);
+}
+
 using std::size_t;
 
 template <typename T>
@@ -155,3 +181,17 @@ struct pow2_t {
 };
 
 } // namespace nupp
+
+namespace std {
+
+template <typename T> requires(std::is_arithmetic_v<T>)
+struct common_type<nupp::pow2_t, T> {
+  using type = std::common_type_t<uint64_t, T>;
+};
+
+template <typename T> requires(std::is_arithmetic_v<T>)
+struct common_type<T, nupp::pow2_t> {
+  using type = std::common_type_t<T, uint64_t>;
+};
+
+} // namespace std
