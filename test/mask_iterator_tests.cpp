@@ -58,6 +58,8 @@ TEST(MaskIteratorTests, randomized) {
     size_t cnt = 0;
     for (auto it = begin; it != end; ++it) {
       ++cnt;
+
+      EXPECT_TRUE(is_pow2((*it).value));
       result+= (*it).value;
 
       EXPECT_GE(it, begin);

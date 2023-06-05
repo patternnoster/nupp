@@ -60,6 +60,7 @@ TEST(Pow2Tests, arithmetic) {
   // Check log2
   for (int i = 0; i < 64; ++i) {
     const auto val = uint64_t(1) << i;
+    EXPECT_TRUE(is_pow2(val));
     EXPECT_EQ(pow2_t{val}.log2(), i);
   }
 
@@ -95,4 +96,28 @@ TEST(Pow2Tests, arithmetic) {
       if (i < 32) test_mod(uint32_t(x.value), y);
     }
   }
+}
+
+TEST(Pow2Tests, concepts) {
+  EXPECT_TRUE(integer<volatile int>);
+  EXPECT_TRUE(integer<const char16_t>);
+  EXPECT_FALSE(integer<pow2_t>);
+
+  EXPECT_TRUE(extended_integer<int8_t>);
+  EXPECT_TRUE(extended_integer<const pow2_t>);
+
+  EXPECT_FALSE(integer<bool>);
+  EXPECT_FALSE(unsigned_integer<bool>);
+  EXPECT_FALSE(extended_integer<bool>);
+
+  EXPECT_TRUE(extended_arithmetic<bool>);
+  EXPECT_TRUE(extended_arithmetic<size_t>);
+  EXPECT_TRUE(extended_arithmetic<double>);
+  EXPECT_TRUE(extended_arithmetic<pow2_t>);
+
+  EXPECT_TRUE((std::same_as<std::common_type_t<pow2_t, int>, uint64_t>));
+  EXPECT_TRUE((std::same_as<std::common_type_t<pow2_t, double>, double>));
+  EXPECT_TRUE((std::same_as<std::common_type_t<pow2_t, pow2_t>, pow2_t>));
+  EXPECT_TRUE((std::same_as<std::common_type_t<float, pow2_t>, float>));
+  EXPECT_TRUE((std::same_as<std::common_type_t<uint32_t, pow2_t>, uint64_t>));
 }
