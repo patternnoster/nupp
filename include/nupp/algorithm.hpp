@@ -23,9 +23,14 @@ using unsigned_for = __detail::unsigned_for_t<T>::result;
 
 /**
  * @brief Returns the absolute value of the provided argument
+ * @note  Unlike the std::abs function, does not cause undefined
+ *        behaviour when called with the minimum value for signed
+ *        integral types. Always returns the unsigned type
  **/
 template <extended_arithmetic T>
-constexpr unsigned_for<T> absolute(const T) noexcept;
+constexpr unsigned_for<T> absolute(const T arg) noexcept {
+  return __detail::absolute(arg);
+}
 
 /**
  * @brief The minimum function for any (non-zero) number of arithmetic
