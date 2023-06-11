@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.23)
 
 add_executable(nupp_tests
+  algorithm_tests.cpp
   mask_iterator_tests.cpp
   pow2_tests.cpp
 )
