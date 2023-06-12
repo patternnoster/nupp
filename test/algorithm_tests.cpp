@@ -1,3 +1,4 @@
+#include <cmath>
 #include <cstdint>
 #include <gtest/gtest.h>
 #include <limits>
@@ -62,5 +63,33 @@ TEST_F(AlgorithmTests, absolute) {
                           float, double, long double, pow2_t>;
   using cases = decltype(map<type_list>(types{}));
 
-  this->invoke_cases<cases>([](const auto arg) {});
+  constexpr size_t Runs = 1000;
+  for (size_t i = 0; i < Runs; ++i)
+    this->invoke_cases<cases>([](const auto arg) {
+      using arg_t = decltype(arg);
+      const auto result = absolute(arg);
+
+      if constexpr (std::signed_integral<arg_t>) {
+        using exp_result_t = std::make_unsigned_t<arg_t>;
+        EXPECT_TRUE((std::same_as<exp_result_t, decltype(result)>));
+
+        // Careful with the min() value (on 2's complement) and
+        // integer promotion
+        if (arg < arg_t(0)) {
+          EXPECT_EQ(result, exp_result_t(-exp_result_t(arg)));
+        }
+        else {
+          EXPECT_EQ(result, exp_result_t(arg));
+        }
+      }
+      else {
+        EXPECT_TRUE((std::same_as<arg_t, decltype(result)>));
+        if constexpr (std::floating_point<arg_t>) {
+          EXPECT_EQ(result, std::abs(arg));
+        }
+        else {
+          EXPECT_EQ(result, arg);
+        }
+      }
+    });
 }
