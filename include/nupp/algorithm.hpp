@@ -44,6 +44,11 @@ constexpr std::common_type_t<Args...> minimum(const Args...) noexcept;
  * @brief The maximum function for any (non-zero) number of arithemitc
  *        arguments. Returns (a copy of) the result, converted to
  *        std::common_type_t<Args...>
+ * @note  The algorithm works correctly when mixing signed and unsigned
+ *        types. No overflowing conversions are performed for integral
+ *        values
+ * @note  Narrowing conversions may be performed when mixing floating
+ *        point and integral arguments
  **/
 template <extended_arithmetic... Args> requires(sizeof...(Args) > 0)
 constexpr std::common_type_t<Args...> maximum(const Args...) noexcept;

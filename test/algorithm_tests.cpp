@@ -148,3 +148,31 @@ TEST_F(AlgorithmTests, meta) {
     base_coeff/= i + 1;
   }
 }
+
+TEST_F(AlgorithmTests, maximum) {
+  constexpr size_t Runs = 1000;
+
+  const auto test = [](const auto... args) {
+    const auto result = maximum(args...);
+
+    using R = decltype(result);
+    if constexpr (std::unsigned_integral<R>) {
+      /* We need to be careful with signed arguments since we cannot
+       * always convert them to unsigned. Luckily, the negative signed
+       * arguments can simply be ignored: an unsigned maximum is
+       * always at least 0 */
+      EXPECT_TRUE(((args < decltype(args){} || result >= R(args)) && ...));
+      EXPECT_TRUE(((args >= decltype(args){} && result == R(args)) || ...));
+      return;
+    }
+    else {
+      // Otherwise the conversion to common type (even if pow2_t) is
+      // safe, so we can just do:
+      EXPECT_TRUE(((result >= R(args)) && ...));
+      EXPECT_TRUE(((result == R(args)) || ...));
+    }
+  };
+
+  for (size_t i = 0; i < Runs; ++i)
+    this->apply_to_all_cases(test);
+}
