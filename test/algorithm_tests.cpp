@@ -13,8 +13,35 @@ using namespace nupp;
 
 template <typename...> struct type_list{};
 
+template <typename, typename> struct prepend;
+template <typename T, typename... Ts>
+struct prepend<T, type_list<Ts...>> { using result = type_list<T, Ts...>; };
+
+// We only generate non-empty subsets
+
+template <typename, typename> struct add_to_subsets;
+template <typename T, typename... Ls>
+struct add_to_subsets<T, type_list<Ls...>> {
+  using result = type_list<Ls..., type_list<T>,
+                           typename prepend<T, Ls>::result...>;
+};
+
+template <typename L> struct subsets { using result = type_list<L>; };
+template <typename H, typename... Ts> requires(sizeof...(Ts) > 0)
+struct subsets<type_list<H, Ts...>> {
+  using result =
+    add_to_subsets<H, typename subsets<type_list<Ts...>>::result>::result;
+};
+
 class AlgorithmTests: public ::testing::Test {
 private:
+  using int_args = type_list<pow2_t, uint32_t, uint64_t, pow2_t,
+                             int32_t, int64_t, pow2_t>;
+
+  using int_subsets = subsets<int_args>::result;
+  using all_subsets =
+    subsets<typename prepend<double, int_args>::result>::result;
+
   template <typename T>
   static T gen_element() noexcept {
     // To check for the border cases for integers, we will generate
@@ -51,6 +78,11 @@ protected:
                          return std::tuple{ gen_element<Args>()... };
                        }(Cases{})));
     }(List{});
+  }
+
+  template <typename Func>
+  void apply_to_all_cases(Func&& f) noexcept {
+    invoke_cases<all_subsets>(std::forward<Func>(f));
   }
 };
 
@@ -92,4 +124,27 @@ TEST_F(AlgorithmTests, absolute) {
         }
       }
     });
+}
+
+TEST_F(AlgorithmTests, meta) {
+  // A meta test for our own test cases generation
+  constexpr static size_t MaxSize = 8;
+
+  size_t sizes[MaxSize + 1] = {};
+  this->apply_to_all_cases([&sizes](const auto... args) {
+    constexpr size_t size = sizeof...(args);
+    ASSERT_GT(size, 0);
+    ASSERT_LE(size, MaxSize);
+
+    ++sizes[0];
+    ++sizes[size];
+  });
+
+  EXPECT_EQ(sizes[0], (1 << MaxSize) - 1);  // no empty
+  uint64_t base_coeff = MaxSize;  // binomial coefficient
+  for (size_t i = 1; i <= MaxSize; ++i) {
+    EXPECT_EQ(sizes[i], base_coeff);
+    base_coeff*= MaxSize - i;
+    base_coeff/= i + 1;
+  }
 }
