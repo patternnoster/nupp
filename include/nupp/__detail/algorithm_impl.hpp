@@ -3,6 +3,8 @@
 #include <concepts>
 #include <type_traits>
 
+#include "../pow2_t.hpp"
+
 /**
  * @file
  * The implementation of the extended versions of some standard
@@ -33,5 +35,47 @@ constexpr auto absolute(const T arg) noexcept {
   else if constexpr (std::floating_point<T>) return (std::abs)(arg);
   else return arg;
 }
+
+// I wonder why STL is missing this...
+template <typename T>
+concept arithmetic = std::is_arithmetic_v<T>;
+
+enum class algorithms { minimum, maximum, gcd, lcm };
+
+/**
+ * @brief The unified functor type that implements given numerical
+ *        algorithms on any number of arguments
+ **/
+template <algorithms _algo>
+struct invoker_t {
+  template <std::same_as<pow2_t>... Args>  // pow2_t special case
+  constexpr pow2_t operator()(const Args...) const noexcept;
+
+  template <arithmetic... Args>            // non-pow2_t case
+  constexpr auto operator()(const Args...) const noexcept;
+
+  template <typename... Args>              // mixed case
+  constexpr auto operator()(const Args...) const noexcept;
+};
+
+template <algorithms _algo>
+template <std::same_as<pow2_t>... Args>
+constexpr pow2_t invoker_t<_algo>::operator()(const Args...) const noexcept {
+  return {};
+}
+
+template <algorithms _algo>
+template <arithmetic... Args>
+constexpr auto invoker_t<_algo>::operator()(const Args...) const noexcept {
+  return std::common_type_t<Args...>{};
+}
+
+template <algorithms _algo>
+template <typename... Args>
+constexpr auto invoker_t<_algo>::operator()(const Args...) const noexcept {
+  return std::common_type_t<Args...>{};
+};
+
+template <algorithms _algo> constexpr invoker_t<_algo> invoker{};
 
 } // namespace nupp::__detail

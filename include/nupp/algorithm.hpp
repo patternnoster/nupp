@@ -51,7 +51,9 @@ constexpr std::common_type_t<Args...> minimum(const Args...) noexcept;
  *        point and integral arguments
  **/
 template <extended_arithmetic... Args> requires(sizeof...(Args) > 0)
-constexpr std::common_type_t<Args...> maximum(const Args...) noexcept;
+constexpr std::common_type_t<Args...> maximum(const Args... args) noexcept {
+  return __detail::invoker<__detail::algorithms::maximum>(args...);
+}
 
 /**
  * @brief The greatest common divisor function for any (non-zero)
