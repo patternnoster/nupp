@@ -19,7 +19,14 @@ namespace nupp {
  *        is same as T, otherwise same as std::make_unsigned_t<T>)
  **/
 template <extended_arithmetic T>
-using unsigned_for = __detail::unsigned_for_t<T>::result;
+using unsigned_for_t = __detail::unsigned_for<T>::type;
+
+/**
+ * @brief The common type of all the signed types in a given
+ *        list. Equals their std::common_type_t, if none are signed
+ **/
+template <extended_arithmetic... Ts> requires(sizeof...(Ts) > 0)
+using signed_common_type_t = __detail::signed_common_type<Ts...>::type;
 
 /**
  * @brief Returns the absolute value of the provided argument
@@ -28,27 +35,32 @@ using unsigned_for = __detail::unsigned_for_t<T>::result;
  *        integral types. Always returns the unsigned type
  **/
 template <extended_arithmetic T>
-constexpr unsigned_for<T> absolute(const T arg) noexcept {
+constexpr unsigned_for_t<T> absolute(const T arg) noexcept {
   return __detail::absolute(arg);
 }
 
 /**
  * @brief The minimum function for any (non-zero) number of arithmetic
  *        arguments. Returns (a copy of) the result, converted to
- *        std::common_type_t<Args...>
+ *        signed_common_type_t<Args...> (i.e., std::common_type_t of
+ *        all the signed argument types, or all argument types if none
+ *        of them are signed)
+ * @note  The algorithm works correctly when mixing signed and unsigned
+ *        types, but narrowing conversions may be performed when
+ *        mixing floating point and integral arguments
  **/
 template <extended_arithmetic... Args> requires(sizeof...(Args) > 0)
-constexpr std::common_type_t<Args...> minimum(const Args...) noexcept;
+constexpr signed_common_type_t<Args...> minimum(const Args... args) noexcept {
+  return __detail::invoker<__detail::algorithms::minimum>(args...);
+}
 
 /**
  * @brief The maximum function for any (non-zero) number of arithemitc
  *        arguments. Returns (a copy of) the result, converted to
  *        std::common_type_t<Args...>
  * @note  The algorithm works correctly when mixing signed and unsigned
- *        types. No overflowing conversions are performed for integral
- *        values
- * @note  Narrowing conversions may be performed when mixing floating
- *        point and integral arguments
+ *        types, but narrowing conversions may be performed when
+ *        mixing floating point and integral arguments
  **/
 template <extended_arithmetic... Args> requires(sizeof...(Args) > 0)
 constexpr std::common_type_t<Args...> maximum(const Args... args) noexcept {
@@ -60,13 +72,15 @@ constexpr std::common_type_t<Args...> maximum(const Args... args) noexcept {
  *        number of (absolute values of) the integer arguments
  **/
 template <extended_integer... Args> requires(sizeof...(Args) > 0)
-constexpr unsigned_for<std::common_type_t<Args...>> gcd(const Args...) noexcept;
+constexpr unsigned_for_t<std::common_type_t<Args...>> gcd
+  (const Args...) noexcept;
 
 /**
  * @brief The least common multiple function for any (non-zero)
  *        number of (absolute values of) the integer arguments
  **/
 template <extended_integer... Args> requires(sizeof...(Args) > 0)
-constexpr unsigned_for<std::common_type_t<Args...>>lcm(const Args...) noexcept;
+constexpr unsigned_for_t<std::common_type_t<Args...>>lcm
+  (const Args...) noexcept;
 
 } // namespace nupp

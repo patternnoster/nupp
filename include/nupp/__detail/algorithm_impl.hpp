@@ -19,10 +19,25 @@
 namespace nupp::__detail {
 
 template <typename T>
-struct unsigned_for_t { using result = T; };
+struct unsigned_for { using type = T; };
 
 template <std::signed_integral T>
-struct unsigned_for_t<T> { using result = std::make_unsigned_t<T>; };
+struct unsigned_for<T> { using type = std::make_unsigned_t<T>; };
+
+template <typename... Ts> requires(sizeof...(Ts) > 0)
+struct signed_common_type { using type = std::common_type_t<Ts...>; };
+
+template <typename H, typename... Ts>
+  requires(sizeof...(Ts) > 0
+           && (std::is_signed_v<H> || ... || std::is_signed_v<Ts>))
+struct signed_common_type<H, Ts...> {
+  using common_tail_t = signed_common_type<Ts...>::type;
+  using type =
+    std::conditional_t<std::is_signed_v<H>,
+                       std::conditional_t<(std::is_signed_v<Ts> || ...),
+                                          std::common_type_t<H, common_tail_t>,
+                                          H>, common_tail_t>;
+};
 
 template <typename T>
 constexpr auto absolute(const T arg) noexcept {
