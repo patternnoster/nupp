@@ -149,6 +149,32 @@ TEST_F(AlgorithmTests, meta) {
   }
 }
 
+TEST_F(AlgorithmTests, minimum) {
+  constexpr size_t Runs = 1000;
+  const auto test = [](const auto... args) {
+    const auto result = minimum(args...);
+
+    using R = decltype(result);
+    if constexpr (std::signed_integral<R>) {
+      /* We need to be careful with unsigned arguments since we cannot
+       * always convert them to the signed result. Since this is a
+       * minimum, we can simply ignore those that would overflow */
+      constexpr auto lim = std::numeric_limits<R>::max();
+      EXPECT_TRUE(((args > lim || result <= R(args)) && ...));
+      EXPECT_TRUE(((args <= lim && result == R(args)) || ...));
+    }
+    else {
+      // If the result is unsigned integral, that means all the
+      // arguments are as well
+      EXPECT_TRUE(((result <= R(args)) && ...));
+      EXPECT_TRUE(((result == R(args)) || ...));
+    }
+  };
+
+  for (size_t i = 0; i < Runs; ++i)
+    this->apply_to_all_cases(test);
+}
+
 TEST_F(AlgorithmTests, maximum) {
   constexpr size_t Runs = 1000;
 

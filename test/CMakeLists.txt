@@ -9,7 +9,8 @@ target_link_libraries(nupp_tests PRIVATE nupp gtest_main)
 
 # Show all warnings because we're pedantic (and also all and extra)
 target_compile_options(nupp_tests PRIVATE
-  $<IF:$<BOOL:${MSVC}>, /W3, -Wall -Wpedantic -Wextra>)
+  $<IF:$<BOOL:${MSVC}>, /W3, -Wall -Wpedantic -Wextra>
+  $<$<CXX_COMPILER_ID:MSVC>:/bigobj>)
 
 include(GoogleTest)
 gtest_discover_tests(nupp_tests)
