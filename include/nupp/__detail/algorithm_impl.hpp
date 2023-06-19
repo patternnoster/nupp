@@ -1,4 +1,6 @@
 #pragma once
+#include <algorithm>
+#include <bit>
 #include <cmath>
 #include <concepts>
 #include <type_traits>
@@ -60,8 +62,29 @@ struct invoker_t {
 
 template <algorithms _algo>
 template <std::same_as<pow2_t>... Args>
-constexpr pow2_t invoker_t<_algo>::operator()(const Args...) const noexcept {
-  return {};
+constexpr pow2_t invoker_t<_algo>::operator()
+  (const Args... args) const noexcept {
+  constexpr size_t size = sizeof...(Args);
+  static_assert(size > 0);
+
+  if constexpr (size == 1) return (args, ...);
+  else if constexpr (size == 2) {
+    // The optimization is not worth it with only 2 arguments
+    if constexpr (_algo == algorithms::minimum)
+      return pow2_t{ (std::min)({args.value...}), pow2_t::exact };
+    else
+      return pow2_t{ (std::max)({args.value...}), pow2_t::exact };
+  }
+  else {
+    // Okay, now it's worth it: more than 2 arguments
+    const uint64_t or_all = (args.value | ...);
+    if constexpr (_algo == algorithms::minimum)
+      return pow2_t{ uint64_t(1) << std::countr_zero(or_all),
+                     pow2_t::exact };
+    else
+      return pow2_t{ uint64_t(1) << 63 >> std::countl_zero(or_all),
+                     pow2_t::exact };
+  }
 }
 
 template <algorithms _algo>
