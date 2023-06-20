@@ -33,6 +33,12 @@ struct subsets<type_list<H, Ts...>> {
     add_to_subsets<H, typename subsets<type_list<Ts...>>::result>::result;
 };
 
+template <typename T, typename... Ts>
+constexpr bool any = (std::same_as<T, Ts> || ...);
+
+template <typename T, typename... Ts>
+constexpr bool all = (std::same_as<T, Ts> && ...);
+
 class AlgorithmTests: public ::testing::Test {
 private:
   using int_args = type_list<pow2_t, uint32_t, uint64_t, pow2_t,
@@ -70,6 +76,26 @@ private:
   }
 
 protected:
+  template <typename... Ts>
+  static auto get_proper_common_t() noexcept {
+    // Cleaner than std::conditional_t
+    if constexpr (all<pow2_t, Ts...>) return pow2_t{};
+    else if constexpr (any<double, Ts...>) return double{};
+    else if constexpr (any<pow2_t, Ts...> || any<uint64_t, Ts...>)
+      return uint64_t{};
+    else if constexpr (any<int64_t, Ts...>) return int64_t{};
+    else if constexpr (any<uint32_t, Ts...>) return uint32_t{};
+    else return int32_t{};
+  }
+
+  template <typename... Ts>
+  static auto get_proper_signed_common_t() noexcept {
+    if constexpr (any<double, Ts...>) return double{};
+    else if constexpr (any<int64_t, Ts...>) return int64_t{};
+    else if constexpr (any<int32_t, Ts...>) return int32_t{};
+    else return get_proper_common_t<Ts...>();
+  }
+
   template <typename List, typename Func>
   static void invoke_cases(Func&& f) noexcept {
     [&f]<typename... Cases>(const type_list<Cases...>) {
@@ -81,7 +107,7 @@ protected:
   }
 
   template <typename Func>
-  void apply_to_all_cases(Func&& f) noexcept {
+  static void apply_to_all_cases(Func&& f) noexcept {
     invoke_cases<all_subsets>(std::forward<Func>(f));
   }
 };
@@ -151,10 +177,13 @@ TEST_F(AlgorithmTests, meta) {
 
 TEST_F(AlgorithmTests, minimum) {
   constexpr size_t Runs = 1000;
-  const auto test = [](const auto... args) {
+  const auto test = []<typename... Ts>(const Ts... args) {
     const auto result = minimum(args...);
 
     using R = decltype(result);
+    ASSERT_TRUE((std::same_as<std::decay_t<R>,
+                              decltype(get_proper_signed_common_t<Ts...>())>));
+
     if constexpr (std::signed_integral<R>) {
       /* We need to be careful with unsigned arguments since we cannot
        * always convert them to the signed result. Since this is a
@@ -178,10 +207,13 @@ TEST_F(AlgorithmTests, minimum) {
 TEST_F(AlgorithmTests, maximum) {
   constexpr size_t Runs = 1000;
 
-  const auto test = [](const auto... args) {
+  const auto test = []<typename... Ts>(const Ts... args) {
     const auto result = maximum(args...);
 
     using R = decltype(result);
+    ASSERT_TRUE((std::same_as<std::decay_t<R>,
+                              decltype(get_proper_common_t<Ts...>())>));
+
     if constexpr (std::unsigned_integral<R>) {
       /* We need to be careful with signed arguments since we cannot
        * always convert them to unsigned. Luckily, the negative signed
