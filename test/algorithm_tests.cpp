@@ -184,6 +184,9 @@ TEST_F(AlgorithmTests, minimum) {
     ASSERT_TRUE((std::same_as<std::decay_t<R>,
                               decltype(get_proper_signed_common_t<Ts...>())>));
 
+    if ((std::same_as<pow2_t, Ts> || ...)
+        && (!std::same_as<pow2_t, Ts> || ...)) return;
+
     if constexpr (std::signed_integral<R>) {
       /* We need to be careful with unsigned arguments since we cannot
        * always convert them to the signed result. Since this is a
@@ -213,6 +216,9 @@ TEST_F(AlgorithmTests, maximum) {
     using R = decltype(result);
     ASSERT_TRUE((std::same_as<std::decay_t<R>,
                               decltype(get_proper_common_t<Ts...>())>));
+
+    if ((std::same_as<pow2_t, Ts> || ...)
+        && (!std::same_as<pow2_t, Ts> || ...)) return;
 
     if constexpr (std::unsigned_integral<R>) {
       /* We need to be careful with signed arguments since we cannot

@@ -139,7 +139,7 @@ struct partition_t<P, R, H, Ts...> {
   constexpr static size_t next_idx =
     R::true_indices::size() + R::false_indices::size();
 
-  using head_result = std::conditional_t<P<R>::value,
+  using head_result = std::conditional_t<P<H>::value,
                                          append_true<R, next_idx>,
                                          append_false<R, next_idx>>;
 
@@ -153,9 +153,61 @@ using partition = partition_t<P, partition_result<>, Ts...>::result;
 
 template <algorithms _algo>
 template <arithmetic... Args>
-constexpr auto invoker_t<_algo>::operator()(const Args...) const noexcept {
-  using signed_partition = partition<std::is_signed, Args...>;
-  return std::common_type_t<Args...>{};
+constexpr auto invoker_t<_algo>::operator()(const Args... args) const noexcept {
+  constexpr size_t size = sizeof...(Args);
+  static_assert(size > 0);
+
+  if constexpr (size == 1) return (args, ...);
+  else {
+    using common_t = std::common_type_t<Args...>;
+    if constexpr ((std::is_signed_v<Args> && ...)
+                  || (!std::is_signed_v<Args> && ...)) {
+      // If all the arguments are signed or not at the same time, we
+      // can simply convert them to the common type
+      if constexpr (_algo == algorithms::minimum)
+        return (std::min)({ common_t(args)... });
+      else
+        return (std::max)({ common_t(args)... });
+    }
+    else {
+      /* Otherwise, problem: we cannot convert signed types to the
+       * common type if it's unsigned, otherwise the result might be
+       * incorrect. So deal with them separately.
+       * As always, crisis is an opportunity: if the signed result is
+       * negative, we can cut away a few steps... */
+      using signed_partition = partition<std::is_signed, Args...>;
+
+      const auto args_tuple = std::forward_as_tuple(args...);
+      return [this, &args_tuple]<size_t... _signed, size_t... _non_signed>
+        (std::index_sequence<_signed...>, std::index_sequence<_non_signed...>) {
+        // First get the signed result (this calls a constexpr condition above)
+        const auto signed_result = (*this)(std::get<_signed>(args_tuple)...);
+        if constexpr (_algo == algorithms::minimum)
+          if (signed_result <= 0) // No positive (unsigned) number can be less
+            return signed_result;  // The type is signed_common_type_t
+
+        // Now same for the unsigned one
+        const auto unsigned_result =
+          (*this)(std::get<_non_signed>(args_tuple)...);
+        if constexpr (_algo == algorithms::maximum) {
+          if (signed_result <= 0) // Same as above
+            return common_t(unsigned_result);  // never narrowing for integral
+        }
+
+        // The signed_result is positive here, otherwise we would've
+        // returned. Which means, conversion is safe:
+        const auto result =
+          (*this)(common_t(signed_result), common_t(unsigned_result));
+
+        if constexpr (_algo == algorithms::minimum)
+          // The conversion is safe, since the minimum cannot be
+          // greater than the maximum signed value
+          return decltype(signed_result)(result);
+        else return result; // Already of common type
+      }(typename signed_partition::true_indices{},
+        typename signed_partition::false_indices{});
+    }
+  }
 }
 
 template <algorithms _algo>
