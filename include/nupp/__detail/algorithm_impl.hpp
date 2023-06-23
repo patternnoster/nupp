@@ -4,6 +4,7 @@
 #include <cmath>
 #include <concepts>
 #include <type_traits>
+#include <utility>
 
 #include "../pow2_t.hpp"
 
@@ -102,9 +103,58 @@ constexpr pow2_t invoker_t<_algo>::operator()
   }
 }
 
+// For the remaining two methods we're going to need some meta-helpers
+
+template <typename S, size_t> struct append_idx;
+template <size_t... _idxs, size_t _arg>
+struct append_idx<std::index_sequence<_idxs...>, _arg> {
+  using result = std::index_sequence<_idxs..., _arg>;
+};
+
+template <typename T = std::index_sequence<>,
+          typename F = std::index_sequence<>>
+struct partition_result {
+  using true_indices = T;
+  using false_indices = F;
+};
+
+template <typename R, size_t _idx>
+using append_true =
+  partition_result<typename append_idx<typename R::true_indices,
+                                       _idx>::result,
+                   typename R::false_indices>;
+
+template <typename R, size_t _idx>
+using append_false =
+  partition_result<typename R::true_indices,
+                   typename append_idx<typename R::false_indices,
+                                       _idx>::result>;
+
+template <template <typename> typename, typename R, typename...>
+struct partition_t { using result = R; };
+
+template <template <typename> typename P, typename R,
+          typename H, typename... Ts>
+struct partition_t<P, R, H, Ts...> {
+  constexpr static size_t next_idx =
+    R::true_indices::size() + R::false_indices::size();
+
+  using head_result = std::conditional_t<P<R>::value,
+                                         append_true<R, next_idx>,
+                                         append_false<R, next_idx>>;
+
+  using result = partition_t<P, head_result, Ts...>::result;
+};
+
+template <template <typename> typename P, typename... Ts>
+using partition = partition_t<P, partition_result<>, Ts...>::result;
+
+// Okay, now the real thing
+
 template <algorithms _algo>
 template <arithmetic... Args>
 constexpr auto invoker_t<_algo>::operator()(const Args...) const noexcept {
+  using signed_partition = partition<std::is_signed, Args...>;
   return std::common_type_t<Args...>{};
 }
 
