@@ -210,10 +210,29 @@ constexpr auto invoker_t<_algo>::operator()(const Args... args) const noexcept {
   }
 }
 
+template <typename T>
+using pow2_predicate = std::is_same<T, pow2_t>;
+
 template <algorithms _algo>
 template <typename... Args>
-constexpr auto invoker_t<_algo>::operator()(const Args...) const noexcept {
-  return std::common_type_t<Args...>{};
+constexpr auto invoker_t<_algo>::operator()(const Args... args) const noexcept {
+  // So we're mixing pow2s and non-pow2s here...
+  static_assert(sizeof...(Args) > 0);
+  using pow2_partition = partition<pow2_predicate, Args...>;
+
+  const auto args_tuple = std::forward_as_tuple(args...);
+  return [this, &args_tuple]<size_t... _pow2s, size_t... _non_pow2s>
+    (std::index_sequence<_pow2s...>, std::index_sequence<_non_pow2s...>) {
+    // First compute the pow2 version separately (this always
+    // calls the overload above)
+    const pow2_t pow2_result = (*this)(std::get<_pow2s>(args_tuple)...);
+
+    /* Now simply use that value as one of the arguments (as
+     * uint64_t), there is both no way and no reason to do it any more
+     * efficiently */
+    return (*this)(pow2_result.value, std::get<_non_pow2s>(args_tuple)...);
+  }(typename pow2_partition::true_indices{},
+    typename pow2_partition::false_indices{});
 };
 
 template <algorithms _algo> constexpr invoker_t<_algo> invoker{};
