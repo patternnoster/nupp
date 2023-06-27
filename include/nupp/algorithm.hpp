@@ -70,10 +70,14 @@ constexpr std::common_type_t<Args...> maximum(const Args... args) noexcept {
 /**
  * @brief The greatest common divisor function for any (non-zero)
  *        number of (absolute values of) the integer arguments
+ * @note  Unlike std::gcd, the behaviour is well-defined for minimum
+ *        values of signed arguments. Always returns an unsigned type
  **/
 template <extended_integer... Args> requires(sizeof...(Args) > 0)
 constexpr unsigned_for_t<std::common_type_t<Args...>> gcd
-  (const Args...) noexcept;
+  (const Args... args) noexcept {
+  return __detail::invoker<__detail::algorithms::gcd>(args...);
+}
 
 /**
  * @brief The least common multiple function for any (non-zero)

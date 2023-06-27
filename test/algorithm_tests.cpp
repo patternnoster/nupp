@@ -107,6 +107,11 @@ protected:
   }
 
   template <typename Func>
+  void apply_to_int_cases(Func&& f) noexcept {
+    invoke_cases<int_subsets>(std::forward<Func>(f));
+  }
+
+  template <typename Func>
   static void apply_to_all_cases(Func&& f) noexcept {
     invoke_cases<all_subsets>(std::forward<Func>(f));
   }
@@ -233,4 +238,28 @@ TEST_F(AlgorithmTests, maximum) {
 
   for (size_t i = 0; i < Runs; ++i)
     this->apply_to_all_cases(test);
+}
+
+auto rec_call_gcd(const auto head, const auto... tail) noexcept {
+  if constexpr (sizeof...(tail) == 0) return head;
+  else return std::gcd(head, rec_call_gcd(tail...));
+};
+
+template <typename T>
+uint64_t abs_ext(const T arg) noexcept {
+  if constexpr (std::same_as<T, pow2_t>) return arg.value;
+  else return absolute(arg);
+}
+
+TEST_F(AlgorithmTests, gcd) {
+  constexpr size_t Runs = 1000;
+
+  const auto test = [](auto... args) {
+    const auto result = gcd(args...);
+    const auto exp = rec_call_gcd(abs_ext(args)...);
+    EXPECT_EQ(result, exp);
+  };
+
+  for (size_t i = 0; i < Runs; ++i)
+    this->apply_to_int_cases(test);
 }
