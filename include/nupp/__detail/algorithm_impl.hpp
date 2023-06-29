@@ -3,6 +3,7 @@
 #include <bit>
 #include <cmath>
 #include <concepts>
+#include <numeric>
 #include <type_traits>
 #include <utility>
 
@@ -69,8 +70,13 @@ struct invoker_t {
   template <std::same_as<pow2_t>... Args>  // pow2_t special case
   constexpr pow2_t operator()(const Args...) const noexcept;
 
-  template <arithmetic... Args>            // non-pow2_t case
+  template <arithmetic... Args>            // non-pow2_t case (min/max)
+    requires(_algo == algorithms::minimum || _algo == algorithms::maximum)
   constexpr auto operator()(const Args...) const noexcept;
+
+  template <integer T, integer... Args>    // non-pow2_t case (gcd/lcm)
+    requires(_algo == algorithms::gcd || _algo == algorithms::lcm)
+  constexpr inline auto operator()(const T, const Args...) const noexcept;
 
   template <typename... Args>              // mixed case
   constexpr auto operator()(const Args...) const noexcept;
@@ -83,10 +89,13 @@ constexpr pow2_t invoker_t<_algo>::operator()
   constexpr size_t size = sizeof...(Args);
   static_assert(size > 0);
 
+  constexpr bool need_minimum =  // for pow2s, gcd is min, lcm is max
+    _algo == algorithms::minimum || _algo == algorithms::gcd;
+
   if constexpr (size == 1) return (args, ...);
   else if constexpr (size == 2) {
     // The optimization is not worth it with only 2 arguments
-    if constexpr (_algo == algorithms::minimum)
+    if constexpr (need_minimum)
       return pow2_t{ (std::min)({args.value...}), pow2_t::exact };
     else
       return pow2_t{ (std::max)({args.value...}), pow2_t::exact };
@@ -94,12 +103,30 @@ constexpr pow2_t invoker_t<_algo>::operator()
   else {
     // Okay, now it's worth it: more than 2 arguments
     const uint64_t or_all = (args.value | ...);
-    if constexpr (_algo == algorithms::minimum)
+    if constexpr (need_minimum)
       return pow2_t{ uint64_t(1) << std::countr_zero(or_all),
                      pow2_t::exact };
     else
       return pow2_t{ uint64_t(1) << 63 >> std::countl_zero(or_all),
                      pow2_t::exact };
+  }
+}
+
+template <algorithms _algo>
+template <integer T, integer... Args>
+  requires(_algo == algorithms::gcd || _algo == algorithms::lcm)
+constexpr inline auto invoker_t<_algo>::operator()
+  (const T head, const Args... tail) const noexcept {
+  // For lcm and gcd we will simply call the STL functions
+  if constexpr (sizeof...(Args) == 0)
+    return absolute(head);
+  else {
+    using result_t = std::make_unsigned_t<std::common_type_t<T, Args...>>;
+    result_t lhs = absolute(head);
+    if constexpr (_algo == algorithms::gcd)
+      return ((lhs = std::gcd(lhs, tail)), ...);
+    else
+      return ((lhs = std::lcm(lhs, tail)), ...);
   }
 }
 
@@ -153,6 +180,7 @@ using partition = partition_t<P, partition_result<>, Ts...>::result;
 
 template <algorithms _algo>
 template <arithmetic... Args>
+  requires(_algo == algorithms::minimum || _algo == algorithms::maximum)
 constexpr auto invoker_t<_algo>::operator()(const Args... args) const noexcept {
   constexpr size_t size = sizeof...(Args);
   static_assert(size > 0);
