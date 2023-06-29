@@ -256,8 +256,33 @@ TEST_F(AlgorithmTests, gcd) {
 
   const auto test = [](auto... args) {
     const auto result = gcd(args...);
-    const auto exp = rec_call_gcd(abs_ext(args)...);
-    EXPECT_EQ(result, exp);
+    const auto expected = rec_call_gcd(abs_ext(args)...);
+    EXPECT_EQ(result, expected);
+  };
+
+  for (size_t i = 0; i < Runs; ++i)
+    this->apply_to_int_cases(test);
+}
+
+auto rec_call_lcm(const auto head, const auto... tail) noexcept {
+  if constexpr (sizeof...(tail) == 0) return head;
+  else return std::lcm(head, rec_call_lcm(tail...));
+};
+
+TEST_F(AlgorithmTests, lcm) {
+  constexpr size_t Runs = 1000;
+
+  const auto test = [](const auto... args) {
+    // We will skip the cases where the product of abs of all
+    // arguments is inexpressible as the unsigned common type, since
+    // that may lead to UB with lcm
+    const size_t max_log = (pow2_t{ abs_ext(args), pow2_t::ceil }.log2() + ...);
+    using result_t = std::common_type_t<decltype(args)...>;
+    if (max_log > sizeof_bit<result_t>) return;
+
+    const auto result = lcm(args...);
+    const auto expected = rec_call_lcm(abs_ext(args)...);
+    EXPECT_EQ(result, expected);
   };
 
   for (size_t i = 0; i < Runs; ++i)

@@ -82,9 +82,16 @@ constexpr unsigned_for_t<std::common_type_t<Args...>> gcd
 /**
  * @brief The least common multiple function for any (non-zero)
  *        number of (absolute values of) the integer arguments
+ * @note  As with std::lcm, the behaviour is undefined if the least
+ *        common multiple is not representable as the unsigned common
+ *        type (e.g., lcm(uint32_t(2^31), int32_t(3))). Unlike
+ *        std::lcm, the behaviour is well-defined for minimum values
+ *        of signed arguments. Always returns an unsigned type
  **/
 template <extended_integer... Args> requires(sizeof...(Args) > 0)
 constexpr unsigned_for_t<std::common_type_t<Args...>>lcm
-  (const Args...) noexcept;
+(const Args... args) noexcept {
+  return __detail::invoker<__detail::algorithms::lcm>(args...);
+}
 
 } // namespace nupp
