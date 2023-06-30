@@ -249,16 +249,43 @@ constexpr auto invoker_t<_algo>::operator()(const Args... args) const noexcept {
   using pow2_partition = partition<pow2_predicate, Args...>;
 
   const auto args_tuple = std::forward_as_tuple(args...);
-  return [this, &args_tuple]<size_t... _pow2s, size_t... _non_pow2s>
-    (std::index_sequence<_pow2s...>, std::index_sequence<_non_pow2s...>) {
+  return [this, &args_tuple]<size_t... _pow2s,
+                             size_t _non_pow2_head, size_t... _non_pow2s_tail>
+    (std::index_sequence<_pow2s...>,
+     std::index_sequence<_non_pow2_head, _non_pow2s_tail...>) {
     // First compute the pow2 version separately (this always
     // calls the overload above)
     const pow2_t pow2_result = (*this)(std::get<_pow2s>(args_tuple)...);
 
-    /* Now simply use that value as one of the arguments (as
-     * uint64_t), there is both no way and no reason to do it any more
-     * efficiently */
-    return (*this)(pow2_result.value, std::get<_non_pow2s>(args_tuple)...);
+    /* For the minimum and maximum we simply use that value as one of
+     * the arguments (as uint64_t), there is both no way and no reason
+     * to do it any more efficiently */
+    if constexpr (_algo == algorithms::minimum || _algo == algorithms::maximum)
+      return (*this)(pow2_result.value, std::get<_non_pow2_head>(args_tuple),
+                     std::get<_non_pow2s_tail>(args_tuple)...);
+    else {
+      /* In case of gcd/lcm however, it makes sense to optimize even a
+       * single pow2 since bit shifts are so much faster than
+       * division. First, get all the non-pow2s results */
+      using result_t = std::make_unsigned_t<std::common_type_t<Args...>>;
+      const result_t non_pow2_result =
+        (*this)(result_t(absolute(std::get<_non_pow2_head>(args_tuple))),
+                std::get<_non_pow2s_tail>(args_tuple)...);
+
+      const int zero_diff =
+        int(pow2_result.log2()) - std::countr_zero(non_pow2_result);
+
+      if constexpr (_algo == algorithms::gcd)
+        // Now the bit trick: gcd with a pow2 is a pow2 with the
+        // minimum number of right zeros...
+        return
+          result_t{ zero_diff <= 0 ? pow2_result : pow2_result >> zero_diff };
+      else
+        // ...and the lcm of x and pow2 has the maximum number of
+        // zeros on the right followed by all the x's other bits
+        return
+          zero_diff <= 0 ? non_pow2_result : non_pow2_result << zero_diff;
+    }
   }(typename pow2_partition::true_indices{},
     typename pow2_partition::false_indices{});
 };
